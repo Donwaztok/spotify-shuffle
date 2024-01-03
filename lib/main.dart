@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:spotify_shuffle/screen/login.dart';
+import 'package:spotify_shuffle/screen/menu.dart';
 
-void main() {
+Future main() async {
+  await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
 
@@ -16,7 +19,11 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.green,
       ),
-      home: const Login(),
+      initialRoute: '/menu',
+      routes: {
+        '/login': (context) => const Login(),
+        '/menu': (context) => const Menu(),
+      },
     );
   }
 }

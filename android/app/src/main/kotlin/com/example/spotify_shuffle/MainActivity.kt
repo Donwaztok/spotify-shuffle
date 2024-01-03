@@ -1,4 +1,4 @@
-package com.example.spotify_shuffle
+package com.ducke.spotifyshuffle
 
 import io.flutter.embedding.android.FlutterActivity
 
