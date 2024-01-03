@@ -108,20 +108,33 @@ class _MenuState extends State<Menu> with SingleTickerProviderStateMixin {
                     itemBuilder: (context, index) {
                       return ListTile(
                         leading: CachedNetworkImage(
-                          imageUrl: playlists[index].getSmallestImage()!.url,
+                          imageUrl: playlists[index].getLargestImage()!.url,
                           placeholder: (context, url) =>
                               const CircularProgressIndicator(),
                           errorWidget: (context, url, error) =>
                               const Icon(Icons.error),
                         ),
-                        title: Text(playlists[index].name),
+                        title: Text(playlists[index].name,
+                            style: const TextStyle(
+                                overflow: TextOverflow.ellipsis)),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                                'Colaborativa: ${playlists[index].collaborative ? 'Sim' : 'Não'}'),
-                            Text(
-                                'Pública: ${playlists[index].public ? 'Sim' : 'Não'}'),
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                playlists[index].collaborative
+                                    ? const Text('Colaborativa',
+                                        style: TextStyle(fontSize: 12))
+                                    : const SizedBox.shrink(),
+                                playlists[index].public
+                                    ? const Text('Pública',
+                                        style: TextStyle(fontSize: 12))
+                                    : const SizedBox.shrink(),
+                              ],
+                            ),
+                            Text(playlists[index].owner.displayName,
+                                style: const TextStyle(fontSize: 12)),
                           ],
                         ),
                         trailing: Row(
