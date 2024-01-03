@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:spotify_shuffle/screen/login.dart';
 import 'package:spotify_shuffle/screen/menu.dart';
 
 Future main() async {
@@ -21,7 +20,6 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/menu',
       routes: {
-        '/login': (context) => const Login(),
         '/menu': (context) => const Menu(),
       },
     );

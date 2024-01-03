@@ -1,8 +1,13 @@
 import 'dart:convert';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spotify_sdk/spotify_sdk.dart';
+import 'package:spotify_shuffle/models/playlists.dart';
 
 class Menu extends StatefulWidget {
   const Menu({super.key});
@@ -13,7 +18,7 @@ class Menu extends StatefulWidget {
 }
 
 class _MenuState extends State<Menu> with SingleTickerProviderStateMixin {
-  List<String> playlists = [];
+  List<Playlist> playlists = [];
 
   Future<void> getPlaylists() async {
     try {
@@ -27,8 +32,12 @@ class _MenuState extends State<Menu> with SingleTickerProviderStateMixin {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        playlists = List<String>.from(
-            data['items'].map((playlist) => playlist['name'].toString()));
+        playlists.clear();
+        for (var item in data['items']) {
+          playlists.add(Playlist.getPlaylist(item));
+        }
+      } else {
+        _showError('[${response.statusCode}] ${response.reasonPhrase}');
       }
     } catch (e) {
       _showError('Erro ao obter as playlists: $e');
@@ -37,14 +46,26 @@ class _MenuState extends State<Menu> with SingleTickerProviderStateMixin {
 
   Future<String?> getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('accessToken');
-  }
+    try {
+      var token = await SpotifySdk.getAccessToken(
+        clientId: dotenv.env['SPOTIFY_CLIENT_ID'] ?? '',
+        redirectUrl: dotenv.env['SPOTIFY_REDIRECT_URL'] ?? '',
+        scope: 'app-remote-control, '
+            'user-modify-playback-state, '
+            'playlist-read-private, '
+            'playlist-modify-public,user-read-currently-playing',
+      );
 
-  Future<void> redirectToLogin() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString(
-        'lastRoute', ModalRoute.of(context)!.settings.name ?? '/Menu');
-    Navigator.pushNamed(context, '/login');
+      prefs.setString('accessToken', token);
+    } catch (e) {
+      if (e is PlatformException) {
+        var platformException = e;
+        _showError(platformException.message ?? e.toString());
+      } else {
+        _showError(e.toString());
+      }
+    }
+    return prefs.getString('accessToken');
   }
 
   void _showError(String error) {
@@ -73,9 +94,6 @@ class _MenuState extends State<Menu> with SingleTickerProviderStateMixin {
             return const CircularProgressIndicator();
           } else if (snapshot.hasError) {
             return const Text('Erro ao obter o token');
-          } else if (snapshot.data == null) {
-            redirectToLogin();
-            return Container();
           } else {
             return FutureBuilder(
               future: getPlaylists(),
@@ -89,7 +107,40 @@ class _MenuState extends State<Menu> with SingleTickerProviderStateMixin {
                     itemCount: playlists.length,
                     itemBuilder: (context, index) {
                       return ListTile(
-                        title: Text(playlists[index]),
+                        leading: CachedNetworkImage(
+                          imageUrl: playlists[index].getSmallestImage()!.url,
+                          placeholder: (context, url) =>
+                              const CircularProgressIndicator(),
+                          errorWidget: (context, url, error) =>
+                              const Icon(Icons.error),
+                        ),
+                        title: Text(playlists[index].name),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                'Colaborativa: ${playlists[index].collaborative ? 'Sim' : 'Não'}'),
+                            Text(
+                                'Pública: ${playlists[index].public ? 'Sim' : 'Não'}'),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              onPressed: () {
+                                // Lógica para reproduzir a playlist
+                              },
+                              icon: const Icon(Icons.play_arrow),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                // Lógica para embaralhar a playlist
+                              },
+                              icon: const Icon(Icons.shuffle),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   );
