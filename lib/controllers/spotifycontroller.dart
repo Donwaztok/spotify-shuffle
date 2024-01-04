@@ -202,4 +202,17 @@ class SpotifyController {
           '[${response.statusCode}] ${response.reasonPhrase} on Delete Playlist');
     }
   }
+
+  Future<void> playPlaylist(Playlist playlist) async {
+    SpotifySdk.play(spotifyUri: playlist.uri);
+    var connectionStatus = await SpotifySdk.connectToSpotifyRemote(
+      clientId: dotenv.env['SPOTIFY_CLIENT_ID'] ?? '',
+      redirectUrl: dotenv.env['SPOTIFY_REDIRECT_URL'] ?? '',
+    );
+
+    if (connectionStatus) {
+      await SpotifySdk.setShuffle(shuffle: false);
+      await SpotifySdk.play(spotifyUri: playlist.uri);
+    }
+  }
 }

@@ -74,7 +74,8 @@ class _Menu extends State<Menu> {
                 ),
                 IconButton(
                   onPressed: () {
-                    // Lógica para reproduzir a playlist
+                    spotifyController
+                        .playPlaylist(spotifyController.playlists[index]);
                   },
                   icon: const Icon(Icons.play_arrow),
                 ),
