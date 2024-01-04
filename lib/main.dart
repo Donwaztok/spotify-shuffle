@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:spotify_shuffle/screen/home.dart';
+import 'package:spotify_shuffle/screen/menu.dart';
 
 Future main() async {
   await dotenv.load(fileName: ".env");
@@ -20,9 +20,9 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
         brightness: Brightness.dark,
       ),
-      home: const Home(),
+      home: const Menu(),
       routes: {
-        '/menu': (context) => const Home(),
+        '/menu': (context) => const Menu(),
       },
     );
   }

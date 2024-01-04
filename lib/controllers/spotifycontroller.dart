@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,7 +8,7 @@ import 'package:spotify_sdk/spotify_sdk.dart';
 import 'package:spotify_shuffle/models/playlists.dart';
 import 'package:spotify_shuffle/utils/utils.dart';
 
-class SpotifyController with ChangeNotifier {
+class SpotifyController {
   final List<Playlist> _playlists = [];
 
   List<Playlist> get playlists => _playlists;
@@ -39,6 +38,7 @@ class SpotifyController with ChangeNotifier {
   }
 
   Future<List<Playlist>> getPlaylists() async {
+    getToken();
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       final response = await http.get(
@@ -61,7 +61,6 @@ class SpotifyController with ChangeNotifier {
     } catch (e) {
       Utils.showError('Erro ao obter as playlists: $e');
     }
-    notifyListeners();
     return [];
   }
 
@@ -172,7 +171,7 @@ class SpotifyController with ChangeNotifier {
         // Tracks were successfully added to the playlist
         Utils.showError('Tracks were successfully added to the playlist');
         // Update playlists
-        getPlaylists();
+        await getPlaylists();
       } else {
         // Handle errors when adding tracks to the playlist
         // You can display an error message or take other appropriate action
@@ -197,7 +196,7 @@ class SpotifyController with ChangeNotifier {
 
     if (response.statusCode == 200) {
       Utils.showError('Playlist deleted successfully');
-      getPlaylists();
+      await getPlaylists();
     } else {
       Utils.showError(
           '[${response.statusCode}] ${response.reasonPhrase} on Delete Playlist');
