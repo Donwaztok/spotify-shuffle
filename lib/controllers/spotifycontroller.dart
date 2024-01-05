@@ -3,20 +3,19 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
 import 'package:spotify_shuffle/models/playlists.dart';
 import 'package:spotify_shuffle/utils/utils.dart';
 
 class SpotifyController {
   final List<Playlist> _playlists = [];
+  String token = '';
 
   List<Playlist> get playlists => _playlists;
 
-  Future<String?> getToken() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+  Future<void> getToken() async {
     try {
-      var token = await SpotifySdk.getAccessToken(
+      token = await SpotifySdk.getAccessToken(
         clientId: dotenv.env['SPOTIFY_CLIENT_ID'] ?? '',
         redirectUrl: dotenv.env['SPOTIFY_REDIRECT_URL'] ?? '',
         scope: 'app-remote-control, '
@@ -24,8 +23,6 @@ class SpotifyController {
             'playlist-read-private, '
             'playlist-modify-public,user-read-currently-playing',
       );
-
-      prefs.setString('accessToken', token);
     } catch (e) {
       if (e is PlatformException) {
         var platformException = e;
@@ -34,17 +31,14 @@ class SpotifyController {
         Utils.showError(e.toString());
       }
     }
-    return prefs.getString('accessToken');
   }
 
   Future<List<Playlist>> getPlaylists() async {
-    getToken();
     try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
       final response = await http.get(
         Uri.parse('https://api.spotify.com/v1/me/playlists'),
         headers: {
-          'Authorization': 'Bearer ${prefs.getString('accessToken')}',
+          'Authorization': 'Bearer $token',
         },
       );
 
@@ -84,11 +78,10 @@ class SpotifyController {
     // Use a biblioteca http para fazer a requisição
     // Você pode usar o pacote 'http' do pub.dev: https://pub.dev/packages/http
     // Exemplo de implementação:
-    SharedPreferences prefs = await SharedPreferences.getInstance();
     final response = await http.get(
       Uri.parse('https://api.spotify.com/v1/playlists/$playlistId/tracks'),
       headers: {
-        'Authorization': 'Bearer ${prefs.getString('accessToken')}',
+        'Authorization': 'Bearer $token',
       },
     );
 
@@ -113,36 +106,28 @@ class SpotifyController {
 
   Future<String> createPlaylist(Playlist playlist) async {
     // Certifique-se de que o usuário já está autenticado usando o método getAccessToken
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('accessToken');
-    if (accessToken != null) {
-      // Faça a chamada para a API do Spotify para criar a nova playlist
-      final response = await http.post(
-        Uri.parse(
-            'https://api.spotify.com/v1/users/${playlist.owner.id}/playlists'),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'name': "[Shuffled] ${playlist.name}",
-          'description': 'Embaralhadas por Spotify Shuffle',
-          'public': playlist.public,
-        }),
-      );
+    // Faça a chamada para a API do Spotify para criar a nova playlist
+    final response = await http.post(
+      Uri.parse(
+          'https://api.spotify.com/v1/users/${playlist.owner.id}/playlists'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'name': "[Shuffled] ${playlist.name}",
+        'description': 'Embaralhadas por Spotify Shuffle',
+        'public': playlist.public,
+      }),
+    );
 
-      if (response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        return data['id'];
-      } else {
-        Utils.showError(
-            '[${response.statusCode}] ${response.reasonPhrase} on Create Playlist');
-        // Lide com erros ao criar a nova playlist
-        // Pode exibir uma mensagem de erro ou realizar outra ação apropriada
-        return '';
-      }
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+      return data['id'];
     } else {
-      // Lide com o caso em que o usuário não está autenticado
+      Utils.showError(
+          '[${response.statusCode}] ${response.reasonPhrase} on Create Playlist');
+      // Lide com erros ao criar a nova playlist
       // Pode exibir uma mensagem de erro ou realizar outra ação apropriada
       return '';
     }
@@ -151,46 +136,37 @@ class SpotifyController {
 // Função para adicionar as músicas embaralhadas na nova playlist
   Future<void> addTracksToPlaylist(
       String playlistId, List<String> trackUris) async {
-    // Make sure the user is authenticated using the getAccessToken method
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? accessToken = prefs.getString('accessToken');
-    if (accessToken != null) {
-      // Make the API call to add tracks to the playlist
-      final response = await http.post(
-        Uri.parse('https://api.spotify.com/v1/playlists/$playlistId/tracks'),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'uris': trackUris,
-        }),
-      );
+    // Make the API call to add tracks to the playlist
+    final response = await http.post(
+      Uri.parse('https://api.spotify.com/v1/playlists/$playlistId/tracks'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'uris': trackUris,
+      }),
+    );
 
-      if (response.statusCode == 201) {
-        // Tracks were successfully added to the playlist
-        Utils.showError('Tracks were successfully added to the playlist');
-        // Update playlists
-        await getPlaylists();
-      } else {
-        // Handle errors when adding tracks to the playlist
-        // You can display an error message or take other appropriate action
-        Utils.showError(
-            '[${response.statusCode}] ${response.reasonPhrase} on Add Tracks to Playlist');
-      }
+    if (response.statusCode == 201) {
+      // Tracks were successfully added to the playlist
+      Utils.showError('Tracks were successfully added to the playlist');
+      // Update playlists
+      await getPlaylists();
     } else {
-      // Handle the case where the user is not authenticated
+      // Handle errors when adding tracks to the playlist
       // You can display an error message or take other appropriate action
+      Utils.showError(
+          '[${response.statusCode}] ${response.reasonPhrase} on Add Tracks to Playlist');
     }
   }
 
   Future<void> deletePlaylist(Playlist playlist) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
     final response = await http.delete(
       Uri.parse(
           'https://api.spotify.com/v1/playlists/${playlist.id}/followers'),
       headers: {
-        'Authorization': 'Bearer ${prefs.getString('accessToken')}',
+        'Authorization': 'Bearer $token',
       },
     );
 

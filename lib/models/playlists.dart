@@ -1,73 +1,71 @@
 class Playlist {
-  final bool collaborative;
-  final String description;
-  final String href;
-  final String id;
-  final List<PlaylistImage> images;
-  final String name;
-  final PlaylistOwner owner;
-  final bool public;
-  final String snapshotId;
-  final PlaylistTracks tracks;
-  final String type;
-  final String uri;
+  bool collaborative;
+  String description;
+  String href;
+  String id;
+  List<PlaylistImage> images;
+  String name;
+  PlaylistOwner owner;
+  bool public;
+  String snapshotId;
+  PlaylistTracks tracks;
+  String type;
+  String uri;
 
-  Playlist({
-    required this.collaborative,
-    required this.description,
-    required this.href,
-    required this.id,
-    required this.images,
-    required this.name,
-    required this.owner,
-    required this.public,
-    required this.snapshotId,
-    required this.tracks,
-    required this.type,
-    required this.uri,
-  });
+  Playlist(
+    this.collaborative,
+    this.description,
+    this.href,
+    this.id,
+    this.images,
+    this.name,
+    this.owner,
+    this.public,
+    this.snapshotId,
+    this.tracks,
+    this.type,
+    this.uri,
+  );
 
   static Playlist getPlaylist(dynamic item) {
     List<PlaylistImage> images = [];
     for (var image in item['images']) {
       images.add(
         PlaylistImage(
-          height: image['height'],
-          url: image['url'],
-          width: image['width'],
+          image['height'] ?? 0,
+          image['url'],
+          image['width'] ?? 0,
         ),
       );
     }
 
     PlaylistOwner owner = PlaylistOwner(
-      displayName: item['owner']['display_name'],
-      externalUrls: PlaylistOwnerExternalUrls(
-        spotify: item['owner']['external_urls']['spotify'],
-      ),
-      href: item['owner']['href'],
-      id: item['owner']['id'],
-      type: item['owner']['type'],
-      uri: item['owner']['uri'],
+      item['owner']['display_name'],
+      PlaylistOwnerExternalUrls(item['owner']['external_urls']['spotify']),
+      item['owner']['href'],
+      item['owner']['id'],
+      item['owner']['type'],
+      item['owner']['uri'],
     );
 
     PlaylistTracks tracks = PlaylistTracks(
-      href: item['tracks']['href'],
-      total: item['tracks']['total'],
+      item['tracks']['href'],
+      item['tracks']['total'] ?? 0,
     );
 
     return Playlist(
-      collaborative: item['collaborative'],
-      description: item['description'],
-      href: item['href'],
-      id: item['id'],
-      images: images,
-      name: item['name'],
-      owner: owner,
-      public: item['public'],
-      snapshotId: item['snapshot_id'],
-      tracks: tracks,
-      type: item['type'],
-      uri: item['uri'],
+      item['collaborative'],
+      item['description'],
+      item['href'],
+      item['id'],
+      images,
+      item['name'],
+      owner,
+      item['public'],
+      item['snapshot_id'],
+      tracks,
+      item['type'],
+      item['uri'],
     );
   }
 
@@ -124,49 +122,40 @@ class Playlist {
 }
 
 class PlaylistImage {
-  final int height;
-  final String url;
-  final int width;
+  int height;
+  String url;
+  int width;
 
-  PlaylistImage({
-    required this.height,
-    required this.url,
-    required this.width,
-  });
+  PlaylistImage(this.height, this.url, this.width);
 }
 
 class PlaylistOwner {
-  final String displayName;
-  final PlaylistOwnerExternalUrls externalUrls;
-  final String href;
-  final String id;
-  final String type;
-  final String uri;
+  String displayName;
+  PlaylistOwnerExternalUrls externalUrls;
+  String href;
+  String id;
+  String type;
+  String uri;
 
-  PlaylistOwner({
-    required this.displayName,
-    required this.externalUrls,
-    required this.href,
-    required this.id,
-    required this.type,
-    required this.uri,
-  });
+  PlaylistOwner(
+    this.displayName,
+    this.externalUrls,
+    this.href,
+    this.id,
+    this.type,
+    this.uri,
+  );
 }
 
 class PlaylistOwnerExternalUrls {
-  final String spotify;
+  String spotify;
 
-  PlaylistOwnerExternalUrls({
-    required this.spotify,
-  });
+  PlaylistOwnerExternalUrls(this.spotify);
 }
 
 class PlaylistTracks {
-  final String href;
-  final int total;
+  String href;
+  int total;
 
-  PlaylistTracks({
-    required this.href,
-    required this.total,
-  });
+  PlaylistTracks(this.href, this.total);
 }
