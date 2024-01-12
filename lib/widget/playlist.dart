@@ -27,6 +27,7 @@ class _PlaylistWidget extends State<PlaylistWidget> {
 
   @override
   Widget build(BuildContext context) {
+    spotifyController.startProgressBar(context);
     return RefreshIndicator(
       key: _refreshIndicatorKey,
       onRefresh: _refresh,

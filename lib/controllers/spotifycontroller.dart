@@ -1,17 +1,25 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:sn_progress_dialog/sn_progress_dialog.dart';
 import 'package:spotify_sdk/spotify_sdk.dart';
 import 'package:spotify_shuffle/models/playlists.dart';
 import 'package:spotify_shuffle/utils/utils.dart';
 
 class SpotifyController {
   final List<Playlist> _playlists = [];
+  late ProgressDialog progressDialog;
   String token = '';
+  int tracks = -1;
 
   List<Playlist> get playlists => _playlists;
+
+  void startProgressBar(BuildContext context) {
+    progressDialog = ProgressDialog(context: context);
+  }
 
   Future<void> getToken() async {
     try {
@@ -61,13 +69,30 @@ class SpotifyController {
   }
 
   Future<void> createShuffledPlaylistWithSameSongs(Playlist playlist) async {
+    progressDialog.show(
+      msg: 'Preparing playlist...',
+      progressType: ProgressType.valuable,
+      backgroundColor: Colors.grey[900]!,
+      progressValueColor: Colors.green,
+      progressBgColor: Colors.white70,
+      msgColor: Colors.white,
+      valueColor: Colors.white,
+      max: tracks,
+      completed: Completed(completedMsg: "Completed!"),
+    );
+
     List<String> trackUris = await getTracksFromPlaylist(playlist.id);
+    tracks = trackUris.length;
     trackUris.shuffle();
 
+    progressDialog.update(msg: 'Creating Playlist...');
     String newPlaylistId = await createPlaylist(playlist);
 
     if (newPlaylistId != '') {
+      progressDialog.update(msg: 'Adding Tracks...');
       await addTracksToPlaylist(newPlaylistId, trackUris);
+    } else {
+      progressDialog.close(delay: 2500);
     }
   }
 
@@ -151,10 +176,7 @@ class SpotifyController {
       );
 
       if (response.statusCode == 201) {
-        Utils.showError("Added Tracks $end/${trackUris.length}");
-      } else {
-        Utils.showError(
-            '[${response.statusCode}] ${response.reasonPhrase} on Add Tracks to Playlist');
+        progressDialog.update(value: end);
       }
     }
     await getPlaylists();
