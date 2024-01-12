@@ -29,6 +29,7 @@ class SpotifyController {
         scope: 'app-remote-control, '
             'user-modify-playback-state, '
             'playlist-read-private, '
+            'playlist-read-collaborative, '
             'playlist-modify-public, '
             'playlist-modify-private, '
             'user-read-currently-playing',
@@ -44,28 +45,39 @@ class SpotifyController {
   }
 
   Future<List<Playlist>> getPlaylists() async {
-    try {
-      final response = await http.get(
-        Uri.parse('https://api.spotify.com/v1/me/playlists'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      );
+    int offset = 0;
+    int limit = 50;
+    _playlists.clear();
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _playlists.clear();
-        for (var item in data['items']) {
-          _playlists.add(Playlist.getPlaylist(item));
+    try {
+      while (true) {
+        final response = await http.get(
+          Uri.parse(
+              'https://api.spotify.com/v1/me/playlists?offset=$offset&limit=$limit'),
+          headers: {
+            'Authorization': 'Bearer $token',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          for (var item in data['items']) {
+            _playlists.add(Playlist.getPlaylist(item));
+          }
+          if (data['items'].length < limit) {
+            break;
+          }
+          offset += limit;
+        } else {
+          Utils.showError(
+              '[${response.statusCode}] ${response.reasonPhrase} on get Playlists');
+          break;
         }
-      } else {
-        Utils.showError(
-            '[${response.statusCode}] ${response.reasonPhrase} on get Playlists');
       }
     } catch (e) {
       Utils.showError('Erro ao obter as playlists: $e');
     }
-    return [];
+    return _playlists;
   }
 
   Future<void> createShuffledPlaylistWithSameSongs(Playlist playlist) async {
