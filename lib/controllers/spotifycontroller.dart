@@ -12,8 +12,8 @@ import 'package:spotify_shuffle/utils/utils.dart';
 class SpotifyController {
   final List<Playlist> _playlists = [];
   late ProgressDialog progressDialog;
-  String token = '';
-  int tracks = -1;
+  String? token;
+  DateTime? lastUpdated;
 
   List<Playlist> get playlists => _playlists;
 
@@ -22,29 +22,37 @@ class SpotifyController {
   }
 
   Future<void> getToken() async {
-    try {
-      token = await SpotifySdk.getAccessToken(
-        clientId: dotenv.env['SPOTIFY_CLIENT_ID'] ?? '',
-        redirectUrl: dotenv.env['SPOTIFY_REDIRECT_URL'] ?? '',
-        scope: 'app-remote-control, '
-            'user-modify-playback-state, '
-            'playlist-read-private, '
-            'playlist-read-collaborative, '
-            'playlist-modify-public, '
-            'playlist-modify-private, '
-            'user-read-currently-playing',
-      );
-    } catch (e) {
-      if (e is PlatformException) {
-        var platformException = e;
-        Utils.showError(platformException.message ?? e.toString());
-      } else {
-        Utils.showError(e.toString());
+    final currentTime = DateTime.now();
+    final oneHourPassed = lastUpdated != null &&
+        currentTime.difference(lastUpdated!).inHours >= 1;
+
+    if (token == null || oneHourPassed) {
+      try {
+        token = await SpotifySdk.getAccessToken(
+          clientId: dotenv.env['SPOTIFY_CLIENT_ID'] ?? '',
+          redirectUrl: dotenv.env['SPOTIFY_REDIRECT_URL'] ?? '',
+          scope: 'app-remote-control, '
+              'user-modify-playback-state, '
+              'playlist-read-private, '
+              'playlist-read-collaborative, '
+              'playlist-modify-public, '
+              'playlist-modify-private, '
+              'user-read-currently-playing',
+        );
+        lastUpdated = currentTime;
+      } catch (e) {
+        if (e is PlatformException) {
+          var platformException = e;
+          Utils.showError(platformException.message ?? e.toString());
+        } else {
+          Utils.showError(e.toString());
+        }
       }
     }
   }
 
   Future<List<Playlist>> getPlaylists() async {
+    await getToken();
     int offset = 0;
     int limit = 50;
     _playlists.clear();
@@ -81,20 +89,12 @@ class SpotifyController {
   }
 
   Future<void> createShuffledPlaylistWithSameSongs(Playlist playlist) async {
-    progressDialog.show(
-      msg: 'Preparing playlist...',
-      progressType: ProgressType.valuable,
-      backgroundColor: Colors.grey[900]!,
-      progressValueColor: Colors.green,
-      progressBgColor: Colors.white70,
-      msgColor: Colors.white,
-      valueColor: Colors.white,
-      max: tracks,
-      completed: Completed(completedMsg: "Completed!"),
-    );
+    showProcessDialog(-1);
+    await getToken();
 
     List<String> trackUris = await getTracksFromPlaylist(playlist.id);
-    tracks = trackUris.length;
+    progressDialog.close(delay: 0);
+    showProcessDialog(trackUris.length);
     trackUris.shuffle();
 
     progressDialog.update(msg: 'Creating Playlist...');
@@ -108,7 +108,22 @@ class SpotifyController {
     }
   }
 
+  void showProcessDialog(int totalTracks) {
+    progressDialog.show(
+      msg: 'Preparing playlist...',
+      progressType: ProgressType.valuable,
+      backgroundColor: Colors.grey[900]!,
+      progressValueColor: Colors.green,
+      progressBgColor: Colors.white70,
+      msgColor: Colors.white,
+      valueColor: Colors.white,
+      max: totalTracks,
+      completed: Completed(completedMsg: "Completed!"),
+    );
+  }
+
   Future<List<String>> getTracksFromPlaylist(String playlistId) async {
+    await getToken();
     int offset = 0;
     List<String> trackUris = [];
 
@@ -142,6 +157,7 @@ class SpotifyController {
   }
 
   Future<String> createPlaylist(Playlist playlist) async {
+    await getToken();
     final response = await http.post(
       Uri.parse('https://api.spotify.com/v1/me/playlists'),
       headers: {
@@ -168,6 +184,7 @@ class SpotifyController {
 
   Future<void> addTracksToPlaylist(
       String playlistId, List<String> trackUris) async {
+    await getToken();
     const int maxTracksPerRequest = 100;
 
     for (var i = 0; i < trackUris.length; i += maxTracksPerRequest) {
@@ -195,6 +212,7 @@ class SpotifyController {
   }
 
   Future<void> deletePlaylist(Playlist playlist) async {
+    await getToken();
     final response = await http.delete(
       Uri.parse(
           'https://api.spotify.com/v1/playlists/${playlist.id}/followers'),
@@ -213,6 +231,7 @@ class SpotifyController {
   }
 
   Future<void> playPlaylist(Playlist playlist) async {
+    await getToken();
     SpotifySdk.play(spotifyUri: playlist.uri);
     var connectionStatus = await SpotifySdk.connectToSpotifyRemote(
       clientId: dotenv.env['SPOTIFY_CLIENT_ID'] ?? '',

@@ -17,8 +17,7 @@ class _PlaylistWidget extends State<PlaylistWidget> {
   @override
   void initState() {
     super.initState();
-    spotifyController.getToken().then((value) =>
-        spotifyController.getPlaylists().then((value) => setState(() {})));
+    _refresh();
   }
 
   Future<void> _refresh() {
