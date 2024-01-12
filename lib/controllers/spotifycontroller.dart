@@ -21,7 +21,9 @@ class SpotifyController {
         scope: 'app-remote-control, '
             'user-modify-playback-state, '
             'playlist-read-private, '
-            'playlist-modify-public,user-read-currently-playing',
+            'playlist-modify-public, '
+            'playlist-modify-private, '
+            'user-read-currently-playing',
       );
     } catch (e) {
       if (e is PlatformException) {
@@ -59,57 +61,52 @@ class SpotifyController {
   }
 
   Future<void> createShuffledPlaylistWithSameSongs(Playlist playlist) async {
-    // Obtenha a lista de músicas da playlist original
     List<String> trackUris = await getTracksFromPlaylist(playlist.id);
-
-    // Embaralhe as músicas
     trackUris.shuffle();
 
-    // Crie uma nova playlist com o mesmo nome da original
     String newPlaylistId = await createPlaylist(playlist);
 
-    // Adicione as músicas embaralhadas na nova playlist
-    await addTracksToPlaylist(newPlaylistId, trackUris);
-  }
-
-// Função para obter a lista de músicas da playlist original
-  Future<List<String>> getTracksFromPlaylist(String playlistId) async {
-    // Faça a chamada para a API do Spotify para obter as músicas da playlist
-    // Use a biblioteca http para fazer a requisição
-    // Você pode usar o pacote 'http' do pub.dev: https://pub.dev/packages/http
-    // Exemplo de implementação:
-    final response = await http.get(
-      Uri.parse('https://api.spotify.com/v1/playlists/$playlistId/tracks'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    // Verifique se a resposta é bem-sucedida (código de status 200)
-    if (response.statusCode == 200) {
-      // Decodifique a resposta JSON
-      final data = jsonDecode(response.body);
-      List<String> trackUris = [];
-      for (var item in data['items']) {
-        // Adicione as URIs das músicas à lista
-        trackUris.add(item['track']['uri']);
-      }
-      return trackUris;
-    } else {
-      // Lide com erros ao obter as músicas da playlist original
-      // Pode exibir uma mensagem de erro ou realizar outra ação apropriada
-      Utils.showError(
-          '[${response.statusCode}] ${response.reasonPhrase} on Tracks from Playlist');
-      return [];
+    if (newPlaylistId != '') {
+      await addTracksToPlaylist(newPlaylistId, trackUris);
     }
   }
 
+  Future<List<String>> getTracksFromPlaylist(String playlistId) async {
+    int offset = 0;
+    List<String> trackUris = [];
+
+    while (true) {
+      final response = await http.get(
+        Uri.parse(
+            'https://api.spotify.com/v1/playlists/$playlistId/tracks?offset=$offset'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        for (var item in data['items']) {
+          trackUris.add(item['track']['uri']);
+        }
+
+        if (data['items'].length < 100) {
+          break;
+        }
+
+        offset += 100;
+      } else {
+        Utils.showError(
+            '[${response.statusCode}] ${response.reasonPhrase} on Tracks from Playlist');
+        break;
+      }
+    }
+    return trackUris;
+  }
+
   Future<String> createPlaylist(Playlist playlist) async {
-    // Certifique-se de que o usuário já está autenticado usando o método getAccessToken
-    // Faça a chamada para a API do Spotify para criar a nova playlist
     final response = await http.post(
-      Uri.parse(
-          'https://api.spotify.com/v1/users/${playlist.owner.id}/playlists'),
+      Uri.parse('https://api.spotify.com/v1/me/playlists'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -118,6 +115,7 @@ class SpotifyController {
         'name': "[Shuffled] ${playlist.name}",
         'description': 'Embaralhadas por Spotify Shuffle',
         'public': playlist.public,
+        'collaborative': playlist.collaborative,
       }),
     );
 
@@ -127,38 +125,39 @@ class SpotifyController {
     } else {
       Utils.showError(
           '[${response.statusCode}] ${response.reasonPhrase} on Create Playlist');
-      // Lide com erros ao criar a nova playlist
-      // Pode exibir uma mensagem de erro ou realizar outra ação apropriada
       return '';
     }
   }
 
-// Função para adicionar as músicas embaralhadas na nova playlist
   Future<void> addTracksToPlaylist(
       String playlistId, List<String> trackUris) async {
-    // Make the API call to add tracks to the playlist
-    final response = await http.post(
-      Uri.parse('https://api.spotify.com/v1/playlists/$playlistId/tracks'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'uris': trackUris,
-      }),
-    );
+    const int maxTracksPerRequest = 100;
 
-    if (response.statusCode == 201) {
-      // Tracks were successfully added to the playlist
-      Utils.showError('Tracks were successfully added to the playlist');
-      // Update playlists
-      await getPlaylists();
-    } else {
-      // Handle errors when adding tracks to the playlist
-      // You can display an error message or take other appropriate action
-      Utils.showError(
-          '[${response.statusCode}] ${response.reasonPhrase} on Add Tracks to Playlist');
+    for (var i = 0; i < trackUris.length; i += maxTracksPerRequest) {
+      var end = (i + maxTracksPerRequest < trackUris.length)
+          ? i + maxTracksPerRequest
+          : trackUris.length;
+      var sublist = trackUris.sublist(i, end);
+
+      final response = await http.post(
+        Uri.parse('https://api.spotify.com/v1/playlists/$playlistId/tracks'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'uris': sublist,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        Utils.showError("Added Tracks $end/${trackUris.length}");
+      } else {
+        Utils.showError(
+            '[${response.statusCode}] ${response.reasonPhrase} on Add Tracks to Playlist');
+      }
     }
+    await getPlaylists();
   }
 
   Future<void> deletePlaylist(Playlist playlist) async {
@@ -189,6 +188,6 @@ class SpotifyController {
     if (connectionStatus) {
       await SpotifySdk.setShuffle(shuffle: false);
       await SpotifySdk.play(spotifyUri: playlist.uri);
-    }
+    } else {}
   }
 }
