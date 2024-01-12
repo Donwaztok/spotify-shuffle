@@ -40,21 +40,29 @@ class _PlaylistWidget extends State<PlaylistWidget> {
               borderRadius: BorderRadius.circular(5),
             ),
             child: ListTile(
-              leading:
-                  spotifyController.playlists[index].getLargestImage() != null
-                      ? CachedNetworkImage(
-                          imageUrl: spotifyController.playlists[index]
-                              .getLargestImage()!
-                              .url,
-                          placeholder: (context, url) =>
-                              const CircularProgressIndicator(),
-                          errorWidget: (context, url, error) =>
-                              const Icon(Icons.error),
-                        )
-                      : const Icon(Icons.error_outline),
-              title: Text(spotifyController.playlists[index].name,
-                  style: const TextStyle(
-                      overflow: TextOverflow.ellipsis, fontSize: 18)),
+              minVerticalPadding: 0,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(4.0),
+                child: AspectRatio(
+                  aspectRatio: 1 / 1,
+                  child: CachedNetworkImage(
+                    imageUrl: spotifyController.playlists[index]
+                        .getLargestImage()
+                        .url,
+                    fit: BoxFit.cover,
+                    errorWidget: (context, url, error) =>
+                        const Icon(Icons.error),
+                  ),
+                ),
+              ),
+              title: Text(
+                spotifyController.playlists[index].name,
+                style: const TextStyle(
+                  overflow: TextOverflow.ellipsis,
+                  fontSize: 18,
+                ),
+              ),
               subtitle: Row(
                 children: [
                   Column(
@@ -63,20 +71,39 @@ class _PlaylistWidget extends State<PlaylistWidget> {
                       Wrap(
                         children: [
                           Text(
-                              "${spotifyController.playlists[index].tracks.total} tracks",
-                              style: const TextStyle(fontSize: 12)),
+                            "${spotifyController.playlists[index].tracks.total} tracks",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                           spotifyController.playlists[index].public
-                              ? const Text(' | Pública',
-                                  style: TextStyle(fontSize: 12))
+                              ? const Text(
+                                  ' | Pública',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                )
                               : const SizedBox.shrink(),
                           spotifyController.playlists[index].collaborative
-                              ? const Text(' | Colaborativa',
-                                  style: TextStyle(fontSize: 12))
+                              ? const Text(
+                                  ' | Colaborativa',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                )
                               : const SizedBox.shrink(),
                         ],
                       ),
-                      Text(spotifyController.playlists[index].owner.displayName,
-                          style: const TextStyle(fontSize: 12)),
+                      Text(
+                        spotifyController.playlists[index].owner.displayName,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                   Expanded(

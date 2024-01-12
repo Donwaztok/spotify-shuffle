@@ -104,9 +104,9 @@ class Playlist {
     return mediumImage;
   }
 
-  PlaylistImage? getLargestImage() {
+  PlaylistImage getLargestImage() {
     if (images.isEmpty) {
-      return null;
+      return PlaylistImage(0, '', 0);
     }
 
     PlaylistImage largestImage = images[0];
