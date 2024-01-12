@@ -108,20 +108,6 @@ class SpotifyController {
     }
   }
 
-  void showProcessDialog(int totalTracks) {
-    progressDialog.show(
-      msg: 'Preparing playlist...',
-      progressType: ProgressType.valuable,
-      backgroundColor: Colors.grey[900]!,
-      progressValueColor: Colors.green,
-      progressBgColor: Colors.white70,
-      msgColor: Colors.white,
-      valueColor: Colors.white,
-      max: totalTracks,
-      completed: Completed(completedMsg: "Completed!"),
-    );
-  }
-
   Future<List<String>> getTracksFromPlaylist(String playlistId) async {
     await getToken();
     int offset = 0;
@@ -239,8 +225,37 @@ class SpotifyController {
     );
 
     if (connectionStatus) {
-      await SpotifySdk.setShuffle(shuffle: false);
+      try {
+        await SpotifySdk.setShuffle(shuffle: false);
+      } catch (e) {
+        // ignore: avoid_catches_without_on_clauses
+      }
       await SpotifySdk.play(spotifyUri: playlist.uri);
-    } else {}
+    }
+  }
+
+  static Future<String> getImageUrl(String imageUri) async {
+    final id = imageUri.split(':').last;
+    final response =
+        await http.get(Uri.parse('https://api.spotify.com/v1/me/tracks/$id'));
+    final json = jsonDecode(response.body);
+    print(json);
+    return json['album']['images'][0]['url'];
+  }
+
+  // ============================================================================
+
+  void showProcessDialog(int totalTracks) {
+    progressDialog.show(
+      msg: 'Preparing playlist...',
+      progressType: ProgressType.valuable,
+      backgroundColor: Colors.grey[900]!,
+      progressValueColor: Colors.green,
+      progressBgColor: Colors.white70,
+      msgColor: Colors.white,
+      valueColor: Colors.white,
+      max: totalTracks,
+      completed: Completed(completedMsg: "Completed!"),
+    );
   }
 }

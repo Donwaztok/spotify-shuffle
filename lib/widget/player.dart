@@ -1,7 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:spotify_sdk/models/player_state.dart';
+import 'package:spotify_sdk/spotify_sdk.dart';
 import 'package:spotify_shuffle/utils/utils.dart';
+import 'package:spotify_shuffle/widget/progressbar.dart';
 
 class PlayerWidget extends StatefulWidget {
   const PlayerWidget({super.key});
@@ -12,25 +16,34 @@ class PlayerWidget extends StatefulWidget {
 
 class _PlayerWidgetState extends State<PlayerWidget> {
   PlayerState? _playerState;
+  late Stream<PlayerState> _playerStateSubscription;
 
   @override
   void initState() {
     super.initState();
+    setupPlayerState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    SpotifySdk.disconnect();
   }
 
   void setupPlayerState() async {
     try {
-      // await SpotifySdk.connectToSpotifyRemote(
-      //   clientId: dotenv.env['SPOTIFY_CLIENT_ID'] ?? '',
-      //   redirectUrl: dotenv.env['SPOTIFY_REDIRECT_URL'] ?? '',
-      // );
+      await SpotifySdk.connectToSpotifyRemote(
+        clientId: dotenv.env['SPOTIFY_CLIENT_ID'] ?? '',
+        redirectUrl: dotenv.env['SPOTIFY_REDIRECT_URL'] ?? '',
+        scope: 'user-read-playback-position',
+      );
 
-      // var playerStateSubscription = SpotifySdk.subscribePlayerState();
-      // playerStateSubscription.listen((playerState) {
-      //   setState(() {
-      //     _playerState = playerState;
-      //   });
-      // });
+      _playerStateSubscription = SpotifySdk.subscribePlayerState();
+      _playerStateSubscription.listen((playerState) {
+        setState(() {
+          _playerState = playerState;
+        });
+      });
     } catch (e) {
       Utils.showError((e as PlatformException).message ?? e.toString());
     }
@@ -45,8 +58,10 @@ class _PlayerWidgetState extends State<PlayerWidget> {
           borderRadius: BorderRadius.circular(5),
         ),
         child: const ListTile(
-          title:
-              SizedBox(height: 2, width: 5, child: LinearProgressIndicator()),
+          title: SizedBox(
+            height: 2,
+            child: LinearProgressIndicator(color: Colors.green),
+          ),
         ),
       );
     }
@@ -58,23 +73,45 @@ class _PlayerWidgetState extends State<PlayerWidget> {
       child: Column(
         children: <Widget>[
           ListTile(
-            leading: const Icon(Icons.album),
-            title: const Text('Música'),
-            subtitle: Slider(
-              value: 0,
-              onChanged: (newRating) {},
-              min: 0,
-              max: 100,
+            minVerticalPadding: 0,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(4.0),
+              child: AspectRatio(
+                aspectRatio: 1 / 1,
+                child: CachedNetworkImage(
+                  imageUrl:
+                      'https://i.scdn.co/image/${_playerState?.track?.imageUri.raw.split(":").last}',
+                  fit: BoxFit.cover,
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                ),
+              ),
+            ),
+            title: Text(
+              _playerState?.track?.name ?? '<Track>',
+              style: const TextStyle(
+                fontSize: 16,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            subtitle: Text(
+              _playerState?.track?.artist.name ?? '<Artist>',
+              style: const TextStyle(fontSize: 12),
             ),
             trailing: IconButton(
-              icon: const Icon(Icons.play_arrow),
-              onPressed: () {},
+              icon: Icon(_playerState?.isPaused ?? true
+                  ? Icons.play_arrow
+                  : Icons.pause),
+              onPressed: () {
+                if (_playerState?.isPaused ?? true) {
+                  SpotifySdk.resume();
+                } else {
+                  SpotifySdk.pause();
+                }
+              },
             ),
           ),
-          Text('Track: ${_playerState?.track?.name ?? 'None'}'),
-          Text('Artist: ${_playerState?.track?.artist.name ?? 'None'}'),
-          Text('Duration: ${_playerState?.track?.duration ?? 'None'}'),
-          // Adicione mais informações conforme necessário
+          ProgressBar(duration: _playerState?.track?.duration ?? 1),
         ],
       ),
     );
